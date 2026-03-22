@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather App</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f0f0f0; min-height: 100vh;
+    display: flex; justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 3rem 1rem;
+  }
+  .container {
+    background: #fff; border-radius: 20px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    padding: 2rem; width: 100%; max-width: 480px;
+    height: fit-content;
+  }
+  h1 { font-size: 24px; font-weight: 500; color: #111; margin-bottom: 1.5rem; }
+
+  .search-row { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+  .search-row input {
+    flex: 1; padding: 10px 14px; font-size: 15px;
+    border-radius: 8px; border: 1px solid #ccc;
+    background: #fff; color: #111; font-family: inherit; outline: none;
+  }
+  .search-row input:focus { border-color: #1a56db; box-shadow: 0 0 0 3px rgba(26,86,219,0.1); }
+  .search-row button {
+    padding: 10px 18px; font-size: 15px; font-weight: 500;
+    border-radius: 8px; border: 1px solid #b3c8fa;
+    background: #e8f0fe; color: #1a56db;
+    cursor: pointer; font-family: inherit;
+  }
+  .search-row button:hover { background: #d4e3fc; }
+  .search-row button:active { transform: scale(0.97); }
+
+  #error-msg {
+    display: none; color: #c0392b; font-size: 14px;
+    margin-bottom: 1rem; padding: 10px 14px;
+    background: #fde8e8; border-radius: 8px; border: 1px solid #f5b7b1;
+  }
+  #loading { display: none; color: #888; font-size: 15px; padding: 1rem 0; }
+
+  .weather-card {
+    background: #fff; border: 1px solid #e8e8e8;
+    border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;
+  }
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+  .city-name { font-size: 22px; font-weight: 500; color: #111; }
+  .country { font-size: 14px; color: #888; margin-top: 2px; }
+  .weather-icon { font-size: 48px; line-height: 1; }
+  .temp { font-size: 48px; font-weight: 500; color: #111; line-height: 1; margin-bottom: 4px; }
+  .description { font-size: 16px; color: #888; margin-bottom: 1.5rem; text-transform: capitalize; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat-box { background: #f7f7f7; border-radius: 8px; padding: 12px; }
+  .stat-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .stat-value { font-size: 18px; font-weight: 500; color: #111; }
+
+  .bottom-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px; }
+  .bottom-box { background: #f7f7f7; border-radius: 8px; padding: 12px; text-align: center; }
+  .bottom-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .bottom-value { font-size: 16px; font-weight: 500; color: #111; }
+
+  .updated { font-size: 12px; color: #bbb; text-align: right; margin-top: 4px; }
+
+  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1rem; }
+  .suggestions p { font-size: 13px; color: #888; width: 100%; margin-bottom: 2px; }
+  .sug-btn {
+    padding: 5px 12px; font-size: 13px; border-radius: 20px;
+    border: 1px solid #e0e0e0; background: #f5f5f5;
+    color: #888; cursor: pointer; font-family: inherit;
+  }
+  .sug-btn:hover { background: #ebebeb; color: #111; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Weather</h1>
+
+  <div class="search-row">
+    <input id="city-input" type="text" placeholder="Enter a city name..." onkeydown="if(event.key==='Enter')fetchWeather()" />
+    <button onclick="fetchWeather()">Search</button>
+  </div>
+
+  <div id="error-msg"></div>
+  <div id="loading">Fetching weather...</div>
+
+  <div id="weather-card" style="display:none;">
+    <div class="weather-card">
+      <div class="card-header">
+        <div>
+          <div class="city-name" id="city-name"></div>
+          <div class="country" id="country"></div>
+        </div>
+        <div class="weather-icon" id="weather-icon"></div>
+      </div>
+      <div class="temp" id="temp"></div>
+      <div class="description" id="description"></div>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">Feels like</div>
+          <div class="stat-value" id="feels-like"></div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Humidity</div>
+          <div class="stat-value" id="humidity"></div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Wind speed</div>
+          <div class="stat-value" id="wind"></div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Visibility</div>
+          <div class="stat-value" id="visibility"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-grid">
+      <div class="bottom-box">
+        <div class="bottom-label">Low</div>
+        <div class="bottom-value" id="temp-min"></div>
+      </div>
+      <div class="bottom-box">
+        <div class="bottom-label">High</div>
+        <div class="bottom-value" id="temp-max"></div>
+      </div>
+      <div class="bottom-box">
+        <div class="bottom-label">Pressure</div>
+        <div class="bottom-value" id="pressure"></div>
+      </div>
+    </div>
+    <div class="updated" id="updated-at"></div>
+  </div>
+
+  <div class="suggestions" id="suggestions">
+    <p>Try a city:</p>
+  </div>
+</div>
+
+<script>
+  const API_KEY = 'bd5e378503939ddaee76f12ad7a97608';
+  const cities = ['New York', 'London', 'Tokyo', 'Sydney', 'Paris', 'Toronto', 'Dubai'];
+
+  const sugDiv = document.getElementById('suggestions');
+  cities.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'sug-btn';
+    btn.textContent = c;
+    btn.onclick = () => { document.getElementById('city-input').value = c; fetchWeather(); };
+    sugDiv.appendChild(btn);
+  });
+
+  const weatherIcons = {
+    '01d':'☀️','01n':'🌙','02d':'⛅','02n':'⛅','03d':'☁️','03n':'☁️',
+    '04d':'☁️','04n':'☁️','09d':'🌧️','09n':'🌧️','10d':'🌦️','10n':'🌧️',
+    '11d':'⛈️','11n':'⛈️','13d':'❄️','13n':'❄️','50d':'🌫️','50n':'🌫️'
+  };
+
+  async function fetchWeather() {
+    const city = document.getElementById('city-input').value.trim();
+    if (!city) return;
+    document.getElementById('error-msg').style.display = 'none';
+    document.getElementById('weather-card').style.display = 'none';
+    document.getElementById('loading').style.display = 'block';
+
+    try {
+      const res = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=metric`
+      );
+      const data = await res.json();
+      document.getElementById('loading').style.display = 'none';
+
+      if (data.cod !== 200) {
+        showError(data.message === 'city not found'
+          ? `City "${city}" not found. Please check the spelling and try again.`
+          : 'Could not fetch weather. Please try again.');
+        return;
+      }
+
+      document.getElementById('city-name').textContent = data.name;
+      document.getElementById('country').textContent = data.sys.country;
+      document.getElementById('temp').textContent = Math.round(data.main.temp) + '°C';
+      document.getElementById('feels-like').textContent = Math.round(data.main.feels_like) + '°C';
+      document.getElementById('humidity').textContent = data.main.humidity + '%';
+      document.getElementById('wind').textContent = Math.round(data.wind.speed * 3.6) + ' km/h';
+      document.getElementById('visibility').textContent = data.visibility ? (data.visibility / 1000).toFixed(1) + ' km' : 'N/A';
+      document.getElementById('temp-min').textContent = Math.round(data.main.temp_min) + '°C';
+      document.getElementById('temp-max').textContent = Math.round(data.main.temp_max) + '°C';
+      document.getElementById('pressure').textContent = data.main.pressure + ' hPa';
+      document.getElementById('description').textContent = data.weather[0].description;
+      document.getElementById('weather-icon').textContent = weatherIcons[data.weather[0].icon] || '🌡️';
+      document.getElementById('updated-at').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('weather-card').style.display = 'block';
+    } catch (e) {
+      document.getElementById('loading').style.display = 'none';
+      showError('Network error. Please check your connection and try again.');
+    }
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+</script>
+</body>
+</html>
